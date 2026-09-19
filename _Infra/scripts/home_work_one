@@ -1,0 +1,99 @@
+-- 1. create auto delete bd
+drop table if exists parametrs;
+drop table if exists packs;
+drop table if exists users;
+drop table if exists eq_types;
+drop table if exists positions;
+
+
+-- 2. create bd and true connect 
+CREATE TABLE positions(
+id integer not null,
+name varchar(150) not null,
+constraint pc_positions primary key (id),
+constraint uq_positions_name unique (name)
+);
+
+CREATE TABLE eq_types(
+id  integer not null,
+name varchar(150) not null,
+constraint pc_eq_types primary key (id),
+constraint uq_eq_types_name unique (name)
+);
+
+CREATE TABLE users(
+id integer not null,
+full_name varchar(150) not null,
+position_id integer not null,
+constraint pc_users primary key (id),
+constraint fk_users_position
+	foreign key (position_id) references positions (id)
+);
+
+CREATE TABLE packs(
+id integer not null,
+user_id integer not null,
+eq_type_id integer not null,
+created_on date not null,
+count1 integer not null,
+constraint pc_packs primary key (id),
+constraint fk_packs_user 
+	foreign key (user_id)  references users (id),
+constraint fk_packs_type
+	foreign key (eq_type_id) references eq_types (id)
+);
+
+CREATE TABLE parametrs(
+id integer not null,
+eq_type_id integer not null,
+name varchar(100) not null,
+unit varchar(20),
+constraint pc_parametrs primary key (id),
+constraint fk_parametrs_type
+	foreign key (eq_type_id) references eq_types (id)
+);
+
+-- 3. input basic data 
+
+insert into positions (id, name) values 
+	(1, 'Оператор'),
+	(2, 'Механ,ик'),
+	(3, 'Инженер');
+
+insert into eq_types (id, name) values
+	(1, 'тяжелое_орудие'),
+	(2, 'винтовки');
+
+INSERT INTO users (id, full_name, position_id) VALUES
+    (1, 'Иванов Иван', 1),
+    (2, 'Петров Пётр', 2);
+
+INSERT INTO parametrs (id, eq_type_id, name, unit) VALUES
+    (1, 1, 'Давление', 'бар'),
+    (2, 1, 'Расход', 'м**3/ч'),
+    (3, 2, 'Мощность', 'кВт');
+
+insert into packs (id, user_id, eq_type_id, created_on, count1) values
+    (1, 1, 1, date '2026-10-10', 10),
+    (2, 1, 2, date '2026-12-10', 5),
+    (3, 2, 1, date '2026-11-10', 6);
+
+-- 4. join data and bd
+
+SELECT u.id           as user_id,
+       u.full_name,
+       pos.name       as position,
+       p.id           as pack_id,
+       p.created_on,
+       p.count1,
+       et.name        as eq_type,
+       par.name       as parameter,
+       par.unit
+from users u
+join positions pos       on u.position_id = pos.id
+join packs p             on p.user_id = u.id
+join eq_types et  		 on p.eq_type_id = et.id
+join parametrs par 		 on par.eq_type_id = et.id
+order by u.id, p.id, par.id;
+		
+
