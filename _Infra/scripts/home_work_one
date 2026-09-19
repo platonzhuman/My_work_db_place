@@ -25,9 +25,7 @@ CREATE TABLE users(
 id integer not null,
 full_name varchar(150) not null,
 position_id integer not null,
-constraint pc_users primary key (id),
-constraint fk_users_position
-	foreign key (position_id) references positions (id)
+constraint pc_users primary key (id)
 );
 
 CREATE TABLE packs(
@@ -35,65 +33,63 @@ id integer not null,
 user_id integer not null,
 eq_type_id integer not null,
 created_on date not null,
-count1 integer not null,
-constraint pc_packs primary key (id),
-constraint fk_packs_user 
-	foreign key (user_id)  references users (id),
-constraint fk_packs_type
-	foreign key (eq_type_id) references eq_types (id)
+constraint pc_packs primary key (id)
 );
 
 CREATE TABLE parametrs(
 id integer not null,
-eq_type_id integer not null,
+pack_id integer not null,
 name varchar(100) not null,
 unit varchar(20),
-constraint pc_parametrs primary key (id),
-constraint fk_parametrs_type
-	foreign key (eq_type_id) references eq_types (id)
+value numeric(10,2) not null,
+constraint pc_parametrs primary key (id)
 );
 
 -- 3. input basic data 
 
-insert into positions (id, name) values 
-	(1, 'Оператор'),
-	(2, 'Механ,ик'),
-	(3, 'Инженер');
-
 insert into eq_types (id, name) values
-	(1, 'тяжелое_орудие'),
-	(2, 'винтовки');
+    (1, 'ДМК'),
+    (2, 'ВР');
 
-INSERT INTO users (id, full_name, position_id) VALUES
+insert into positions (id, name) values
+    (1, 'оператор метепоста'),
+    (2, 'начальник метепоста'),
+    (3, 'техник');
+
+insert into users (id, full_name, position_id) values
     (1, 'Иванов Иван', 1),
     (2, 'Петров Пётр', 2);
 
-INSERT INTO parametrs (id, eq_type_id, name, unit) VALUES
-    (1, 1, 'Давление', 'бар'),
-    (2, 1, 'Расход', 'м**3/ч'),
-    (3, 2, 'Мощность', 'кВт');
+insert into packs (id, user_id, eq_type_id, created_on) values
+    (1, 1, 1, date '2026-09-01'),
+    (2, 2, 2, date '2026-09-02');
 
-insert into packs (id, user_id, eq_type_id, created_on, count1) values
-    (1, 1, 1, date '2026-10-10', 10),
-    (2, 1, 2, date '2026-12-10', 5),
-    (3, 2, 1, date '2026-11-10', 6);
+insert into parametrs (id, pack_id, name, unit, value) values
+    (1, 1, 'высота метеопоста', 'м', 100),
+    (2, 1, 'температура воздуха на высоте метеопоста', '*С', 15),
+    (3, 1, 'давление атмосферы на высоте метеопоста', 'мм рт. ст.', 750),
+    (4, 1, 'направление ветра в приземном слое воздуха', 'б. д. у.', 0),
+    (5, 1, 'скорость ветра в приземном слое воздуха', 'м/с', 0),
+    (6, 2, 'высота метеопоста', 'м', 100),
+    (7, 2, 'температура воздуха на высоте метеопоста', '*С', 12),
+    (8, 2, 'давление атмосферы на высоте метеопоста', 'мм рт. ст.', 760),
+    (9, 2, 'направление ветра в приземном слое воздуха', 'б. д. у.', 20),
+    (10, 2, 'дальность сноса пуль', 'м', 45);
 
 -- 4. join data and bd
 
-SELECT u.id           as user_id,
+select p.id           as pack_id,
+       p.created_on,
        u.full_name,
        pos.name       as position,
-       p.id           as pack_id,
-       p.created_on,
-       p.count1,
        et.name        as eq_type,
        par.name       as parameter,
-       par.unit
-from users u
-join positions pos       on u.position_id = pos.id
-join packs p             on p.user_id = u.id
-join eq_types et  		 on p.eq_type_id = et.id
-join parametrs par 		 on par.eq_type_id = et.id
-order by u.id, p.id, par.id;
-		
+       par.unit,
+       par.value
+from packs p
+join users u            on p.user_id = u.id
+join positions pos      on u.position_id = pos.id
+join eq_types et 		on p.eq_type_id = et.id
+join parametrs par     on par.pack_id = p.id
+order by p.id, par.id;
 
