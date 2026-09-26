@@ -1,0 +1,83 @@
+--ключи и связи старых таблиц
+alter table military_ranks add primary key (id);--ключ должности
+alter table employees add primary key (id);--ключ сотрудника
+alter table employees add foreign key (military_rank_id) references military_ranks(id);--сотрудник -> должность
+alter table measurment_types add primary key (id);--ключ оборудования
+alter table measurment_types add unique (short_name);--имя оборудования уникально
+alter table measurment_baths add primary key (id);--ключ пачки
+alter table measurment_baths add foreign key (emploee_id) references employees(id);--пачка -> сотрудник
+alter table measurment_baths add foreign key (measurment_type_id) references measurment_types(id);  -- пачка -> оборудование
+
+--справочник что измеряем 
+create table base_units(
+	id int primary key,
+	name varchar(100) unique
+);
+
+insert into base_units values
+	(1,'длина'),
+	(2,'температура'),
+	(3,'давление'),
+	(4,'плоский угол'),
+	(5,'скорость');
+
+--справочник в чем измеряем
+create table units(
+	id int primary key, 
+	base_unit_id int references base_units(id),-- к какой величине относится
+	name varchar(100),
+	short_name varchar(20) unique
+);
+
+insert into units values
+	(1,1,'метр','м'),
+	(2,2,'градус Цельсия','*C'),
+	(3,3,'миллиметр ртутного столба','мм рт. ст.'),
+	(4,4,'большое деление угломера','б. д. у.'),
+	(5,5,'метр в секунду','м/с');
+
+--справочник параметров (название + единица)
+create table parameter_types(
+	id int primary key,                 
+	unit_id int references units(id),-- в чём измеряется параметр
+	name varchar(150) unique     
+);
+
+insert into parameter_types values
+	(1,1,'высота метеопоста'),
+	(2,2,'температура воздуха на высоте метеопоста'),
+	(3,3,'давление атмосферы на высоте метеопоста'),
+	(4,4,'направление ветра в приземном слое воздуха'),
+	(5,5,'скорость ветра в приземном слое воздуха'),
+	(6,1,'дальность сноса пуль');
+
+--новая таблица параметров 
+create table mip(
+	id int primary key,                                    
+	measurment_bath_id int references measurment_baths(id),-- к какой пачке относится
+	parameter_type_id int references parameter_types(id),-- какой это параметр
+	value numeric(8,2)-- значение параметра
+);
+
+--перенос
+insert into mip
+select (id-1)*5+1, measurment_bath_id, 1, height from measurment_input_params
+union all select (id-1)*5+2, measurment_bath_id, 2, temperature from measurment_input_params
+union all select (id-1)*5+3, measurment_bath_id, 3, pressure from measurment_input_params
+union all select (id-1)*5+4, measurment_bath_id, 4, wind_direction from measurment_input_params
+union all select (id-1)*5+5, measurment_bath_id, 5, wind_speed from measurment_input_params;
+
+--убираем старую таблицу и даём новой рабочее имя
+delete from measurment_input_params;                                            
+drop table measurment_input_params;                                             
+alter table mip rename to measurment_input_params;                             
+
+--итоговый запрос: дата, пачка, сотрудник, параметр с единицей, значение
+select b.started as date_measurment, b.id as pack_id, e.name as full_name,
+	t.name || ' (' || u.short_name || ')' as parameter, p.value as value
+from measurment_baths b
+inner join employees e on e.id = b.emploee_id
+inner join measurment_input_params p on p.measurment_bath_id = b.id
+inner join parameter_types t on t.id = p.parameter_type_id
+inner join units u on u.id = t.unit_id
+order by b.id, t.id;
