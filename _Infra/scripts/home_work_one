@@ -1,0 +1,95 @@
+-- 1. create auto delete bd
+drop table if exists parametrs;
+drop table if exists packs;
+drop table if exists users;
+drop table if exists eq_types;
+drop table if exists positions;
+
+
+-- 2. create bd and true connect 
+CREATE TABLE positions(
+id integer not null,
+name varchar(150) not null,
+constraint pc_positions primary key (id),
+constraint uq_positions_name unique (name)
+);
+
+CREATE TABLE eq_types(
+id  integer not null,
+name varchar(150) not null,
+constraint pc_eq_types primary key (id),
+constraint uq_eq_types_name unique (name)
+);
+
+CREATE TABLE users(
+id integer not null,
+full_name varchar(150) not null,
+position_id integer not null,
+constraint pc_users primary key (id)
+);
+
+CREATE TABLE packs(
+id integer not null,
+user_id integer not null,
+eq_type_id integer not null,
+created_on date not null,
+constraint pc_packs primary key (id)
+);
+
+CREATE TABLE parametrs(
+id integer not null,
+pack_id integer not null,
+name varchar(100) not null,
+unit varchar(20),
+value numeric(10,2) not null,
+constraint pc_parametrs primary key (id)
+);
+
+-- 3. input basic data 
+
+insert into eq_types (id, name) values
+    (1, 'ДМК'),
+    (2, 'ВР');
+
+insert into positions (id, name) values
+    (1, 'оператор метепоста'),
+    (2, 'начальник метепоста'),
+    (3, 'техник');
+
+insert into users (id, full_name, position_id) values
+    (1, 'Иванов Иван', 1),
+    (2, 'Петров Пётр', 2);
+
+insert into packs (id, user_id, eq_type_id, created_on) values
+    (1, 1, 1, date '2026-09-01'),
+    (2, 2, 2, date '2026-09-02');
+
+insert into parametrs (id, pack_id, name, unit, value) values
+    (1, 1, 'высота метеопоста', 'м', 100),
+    (2, 1, 'температура воздуха на высоте метеопоста', '*С', 15),
+    (3, 1, 'давление атмосферы на высоте метеопоста', 'мм рт. ст.', 750),
+    (4, 1, 'направление ветра в приземном слое воздуха', 'б. д. у.', 0),
+    (5, 1, 'скорость ветра в приземном слое воздуха', 'м/с', 0),
+    (6, 2, 'высота метеопоста', 'м', 100),
+    (7, 2, 'температура воздуха на высоте метеопоста', '*С', 12),
+    (8, 2, 'давление атмосферы на высоте метеопоста', 'мм рт. ст.', 760),
+    (9, 2, 'направление ветра в приземном слое воздуха', 'б. д. у.', 20),
+    (10, 2, 'дальность сноса пуль', 'м', 45);
+
+-- 4. join data and bd
+
+select p.id           as pack_id,
+       p.created_on,
+       u.full_name,
+       pos.name       as position,
+       et.name        as eq_type,
+       par.name       as parameter,
+       par.unit,
+       par.value
+from packs p
+join users u            on p.user_id = u.id
+join positions pos      on u.position_id = pos.id
+join eq_types et 		on p.eq_type_id = et.id
+join parametrs par     on par.pack_id = p.id
+order by p.id, par.id;
+

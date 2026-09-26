@@ -1,9 +1,7 @@
-version: "3.0"
 services:
   # https://hub.docker.com/_/postgres
 
   postgres:
-    user: root
     image: postgres:16.3
     container_name: "postgres"
     environment:
@@ -16,7 +14,6 @@ services:
      - pgdata
 
   pgadmin:
-    user: root
     container_name: "pgadmin"
     image: dpage/pgadmin4
     environment:
