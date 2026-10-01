@@ -42,34 +42,30 @@ insert into parameter_types values
 	(6,1,'дальность сноса пуль');
 
 --новая таблица параметров 
-create table mip(
+create table parametrs_new(
 	id int primary key,                                    
-	measurment_bath_id int,-- к какой пачке относится
+	pack_id int references packs(id),-- к какой пачке относится
 	parameter_type_id int references parameter_types(id),-- какой это параметр
 	value numeric(8,2)-- значение параметра
 );
 
---перенос
-insert into mip (id, measurment_bath_id, parameter_type_id, value)
-select (id-1)*5+1, measurment_bath_id, 1, height from measurment_input_params
-union all select (id-1)*5+2, measurment_bath_id, 2, temperature from measurment_input_params
-union all select (id-1)*5+3, measurment_bath_id, 3, pressure from measurment_input_params
-union all select (id-1)*5+4, measurment_bath_id, 4, wind_direction from measurment_input_params
-union all select (id-1)*5+5, measurment_bath_id, 5, wind_speed from measurment_input_params;
+--перенос: вместо названия параметра ставим его код
+insert into parametrs_new (id, pack_id, parameter_type_id, value)
+select par.id, par.pack_id, pt.id, par.value
+from parametrs par
+join parameter_types pt on pt.name = par.name;
 
 --убираем старую таблицу и даём новой рабочее имя
-delete from measurment_input_params;                                            
-drop table measurment_input_params;                                             
-alter table mip rename to measurment_input_params;                             
+delete from parametrs;                                            
+drop table parametrs;                                             
+alter table parametrs_new rename to parametrs;                             
 
 --итоговый запрос: дата, пачка, сотрудник, параметр с единицей, значение
-select b.started as date_measurment, b.id as pack_id, e.name as full_name,
-	t.name || ' (' || u.short_name || ')' as parameter, p.value as value
-from measurment_baths b
-inner join employees e on e.id = b.emploee_id
-inner join measurment_input_params p on p.measurment_bath_id = b.id
-inner join parameter_types t on t.id = p.parameter_type_id
-inner join units u on u.id = t.unit_id
-order by b.id, t.id;
-
-
+select p.created_on as date_measurment, p.id as pack_id, u.full_name,
+	pt.name || ' (' || un.short_name || ')' as parameter, par.value as value
+from packs p
+inner join users u on u.id = p.user_id
+inner join parametrs par on par.pack_id = p.id
+inner join parameter_types pt on pt.id = par.parameter_type_id
+inner join units un on un.id = pt.unit_id
+order by p.id, pt.id;
