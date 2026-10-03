@@ -1,0 +1,8 @@
+select * from public.measurment_batchs as t1
+inner join
+(
+	select 
+        t1.employee_id,
+        count(t2.id) as measurements_count
+		from measurment_baths as t1, t2
+)

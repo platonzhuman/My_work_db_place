@@ -1,0 +1,40 @@
+-- 1. у каждого пользователя одинаковое число измерений
+select u.id, u.full_name, count(par.id) as cnt
+from users u
+left join packs p on p.user_id = u.id
+left join parametrs par on par.pack_id = p.id
+group by u.id, u.full_name
+order by cnt;
+
+-- 2. пустые пачки
+select p.id
+from packs p
+left join parametrs par on par.pack_id = p.id
+where par.id is null;
+
+-- 3. пачки не с 5 параметрами
+select p.id, count(par.id) as cnt
+from packs p
+left join parametrs par on par.pack_id = p.id
+group by p.id
+having count(par.id) <> 5;
+
+-- 4. значения вне диапазона
+select id, parameter_type_id, value
+from parametrs
+where (parameter_type_id = 2 and value not between -58 and 58)
+   or (parameter_type_id = 3 and value not between 500 and 900)
+   or (parameter_type_id = 4 and value not between 0 and 59)
+   or (parameter_type_id = 5 and value not between 0 and 15)
+   or (parameter_type_id = 6 and value not between 0 and 150);
+
+-- 5. неверные единицы
+select pt.id, pt.name, un.short_name
+from parameter_types pt
+join units un on un.id = pt.unit_id
+where (pt.id = 1 and un.short_name <> 'м')
+   or (pt.id = 2 and un.short_name <> '°C')
+   or (pt.id = 3 and un.short_name <> 'мм рт. ст.')
+   or (pt.id = 4 and un.short_name <> 'б. д. у.')
+   or (pt.id = 5 and un.short_name <> 'м/с')
+   or (pt.id = 6 and un.short_name <> 'м');

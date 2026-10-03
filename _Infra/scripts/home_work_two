@@ -1,0 +1,71 @@
+--справочник что измеряем 
+create table base_units(
+	id int primary key,
+	name varchar(100) unique
+);
+
+insert into base_units values
+	(1,'длина'),
+	(2,'температура'),
+	(3,'давление'),
+	(4,'плоский угол'),
+	(5,'скорость');
+
+--справочник в чем измеряем
+create table units(
+	id int primary key, 
+	base_unit_id int references base_units(id),-- к какой величине относится
+	name varchar(100),
+	short_name varchar(20) unique
+);
+
+insert into units values
+	(1,1,'метр','м'),
+	(2,2,'градус Цельсия','°C'),
+	(3,3,'миллиметр ртутного столба','мм рт. ст.'),
+	(4,4,'большое деление угломера','б. д. у.'),
+	(5,5,'метр в секунду','м/с');
+
+--справочник параметров (название + единица)
+create table parameter_types(
+	id int primary key,                 
+	unit_id int references units(id),-- в чём измеряется параметр
+	name varchar(150) unique     
+);
+
+insert into parameter_types values
+	(1,1,'высота метеопоста'),
+	(2,2,'температура воздуха на высоте метеопоста'),
+	(3,3,'давление атмосферы на высоте метеопоста'),
+	(4,4,'направление ветра в приземном слое воздуха'),
+	(5,5,'скорость ветра в приземном слое воздуха'),
+	(6,1,'дальность сноса пуль');
+
+--новая таблица параметров 
+create table parametrs_new(
+	id int primary key,                                    
+	pack_id int references packs(id),-- к какой пачке относится
+	parameter_type_id int references parameter_types(id),-- какой это параметр
+	value numeric(8,2)-- значение параметра
+);
+
+--перенос: вместо названия параметра ставим его код
+insert into parametrs_new (id, pack_id, parameter_type_id, value)
+select par.id, par.pack_id, pt.id, par.value
+from parametrs par
+join parameter_types pt on pt.name = par.name;
+
+--убираем старую таблицу и даём новой рабочее имя
+delete from parametrs;                                            
+drop table parametrs;                                             
+alter table parametrs_new rename to parametrs;                             
+
+--итоговый запрос: дата, пачка, сотрудник, параметр с единицей, значение
+select p.created_on as date_measurment, p.id as pack_id, u.full_name,
+	pt.name || ' (' || un.short_name || ')' as parameter, par.value as value
+from packs p
+inner join users u on u.id = p.user_id
+inner join parametrs par on par.pack_id = p.id
+inner join parameter_types pt on pt.id = par.parameter_type_id
+inner join units un on un.id = pt.unit_id
+order by p.id, pt.id;
