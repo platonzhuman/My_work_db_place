@@ -10,7 +10,8 @@ order by cnt;
 select p.id
 from packs p
 left join parametrs par on par.pack_id = p.id
-where par.id is null;
+group by p.id
+having count(par.id) = 0;
 
 -- 3. пачки не с 5 параметрами
 select p.id, count(par.id) as cnt
