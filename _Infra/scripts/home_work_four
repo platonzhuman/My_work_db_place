@@ -1,0 +1,150 @@
+--структура таблиц + счётчики
+do $$
+begin
+	-- справочник должностей
+	create table positions(
+		id integer not null,
+		name varchar(150) not null
+	);
+	-- справочник оборудования
+	create table eq_types(
+		id integer not null,
+		name varchar(150) not null
+	);
+	-- сотрудники (ссылка на должность)
+	create table users(
+		id integer not null,
+		full_name varchar(150) not null,
+		position_id integer not null
+	);
+	-- пачки измерений (ссылки на сотрудника и оборудование)
+	create table packs(
+		id integer not null,
+		user_id integer not null,
+		eq_type_id integer not null,
+		created_on date not null
+	);
+	-- измерения (ссылки на пачку и параметр)
+	create table parametrs(
+		id integer not null,
+		pack_id integer not null,
+		parameter_type_id integer not null,
+		value numeric(8,2) not null
+	);
+	-- справочник величин
+	create table base_units(
+		id integer not null,
+		name varchar(100) not null
+	);
+	-- справочник единиц (ссылка на величину)
+	create table units(
+		id integer not null,
+		base_unit_id integer not null,
+		name varchar(100) not null,
+		short_name varchar(20) not null
+	);
+	-- справочник параметров (ссылка на единицу)
+	create table parameter_types(
+		id integer not null,
+		unit_id integer not null,
+		name varchar(150) not null
+	);
+	-- расчёт температуры 
+	create table temperature_correction(
+		id integer not null,
+		t0_from numeric,
+		t0_to numeric,
+		delta_tv numeric not null
+	);
+
+	-- счётчики: id подставляется сам
+	create sequence seq_positions;
+	alter table positions alter column id set default nextval('seq_positions');
+	create sequence seq_eq_types;
+	alter table eq_types alter column id set default nextval('seq_eq_types');
+	create sequence seq_users;
+	alter table users alter column id set default nextval('seq_users');
+	create sequence seq_packs;
+	alter table packs alter column id set default nextval('seq_packs');
+	create sequence seq_parametrs;
+	alter table parametrs alter column id set default nextval('seq_parametrs');
+	create sequence seq_base_units;
+	alter table base_units alter column id set default nextval('seq_base_units');
+	create sequence seq_units;
+	alter table units alter column id set default nextval('seq_units');
+	create sequence seq_parameter_types;
+	alter table parameter_types alter column id set default nextval('seq_parameter_types');
+	create sequence seq_temperature_correction;
+	alter table temperature_correction alter column id set default nextval('seq_temperature_correction');
+	commit;
+end $$;
+
+--тестовые данные 
+do $$
+begin
+	insert into positions (name) values
+		('оператор метеопоста'), ('начальник метепоста'), ('техник');
+	insert into eq_types (name) values ('ДМК'), ('ВР');
+	insert into users (full_name, position_id) values
+		('Иванов Иван', 1), ('Петров Пётр', 2);
+	insert into packs (user_id, eq_type_id, created_on) values
+		(1, 1, date '2026-09-01'), (2, 2, date '2026-09-02');
+	insert into base_units (name) values
+		('длина'), ('температура'), ('давление'), ('плоский угол'), ('скорость');
+	insert into units (base_unit_id, name, short_name) values
+		(1, 'метр', 'м'), (2, 'градус Цельсия', '*C'),
+		(3, 'миллиметр ртутного столба', 'мм рт. ст.'),
+		(4, 'большое деление угломера', 'б. д. у.'), (5, 'метр в секунду', 'м/с');
+	insert into parameter_types (unit_id, name) values
+		(1, 'высота метеопоста'), (2, 'температура воздуха на высоте метеопоста'),
+		(3, 'давление атмосферы на высоте метеопоста'),
+		(4, 'направление ветра в приземном слое воздуха'),
+		(5, 'скорость ветра в приземном слое воздуха'), (1, 'дальность сноса пуль');
+	insert into parametrs (pack_id, parameter_type_id, value) values
+		(1, 1, 100), (1, 2, 15), (1, 3, 750), (1, 4, 0), (1, 5, 0),
+		(2, 1, 100), (2, 2, 12), (2, 3, 760), (2, 4, 20), (2, 6, 45);
+	insert into temperature_correction (t0_from, t0_to, delta_tv) values
+		(null, 0, 0), (0, 5, 0.5), (10, 15, 1), (20, 20, 1.5),
+		(25, 25, 2), (30, 30, 3.5), (40, 40, 4.5);
+	commit;
+end $$;
+
+-- связи и ограничения 
+do $$
+begin
+	-- ключи и уникальность
+	alter table positions add primary key (id);
+	alter table positions alter column name set not null;
+	alter table positions add constraint uq_positions_name unique (name);
+
+	alter table eq_types add primary key (id);
+	alter table eq_types add constraint uq_eq_types_name unique (name);
+
+	alter table users add primary key (id);
+	alter table users alter column full_name set not null;
+	alter table users add foreign key (position_id) references positions (id);
+
+	alter table packs add primary key (id);
+	alter table packs alter column created_on set not null;
+	alter table packs add foreign key (user_id) references users (id);
+	alter table packs add foreign key (eq_type_id) references eq_types (id);
+
+	alter table base_units add primary key (id);
+
+	alter table units add primary key (id);
+	alter table units add constraint uq_units_short_name unique (short_name);
+	alter table units add foreign key (base_unit_id) references base_units (id);
+
+	alter table parameter_types add primary key (id);
+	alter table parameter_types add constraint uq_parameter_types_name unique (name);
+	alter table parameter_types add foreign key (unit_id) references units (id);
+
+	alter table parametrs add primary key (id);
+	alter table parametrs alter column value set not null;
+	alter table parametrs add foreign key (pack_id) references packs (id);
+	alter table parametrs add foreign key (parameter_type_id) references parameter_types (id);
+
+	alter table temperature_correction add primary key (id);
+	alter table temperature_correction alter column delta_tv set not null;
+	commit;
+end $$;
