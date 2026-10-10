@@ -5,9 +5,13 @@ select
 from (
 	select table_name as name, 'Таблица' as type
 	from information_schema.tables
-	where table_schema = 'public'
+	where table_catalog = current_database() and table_schema = 'public'
 	union all
 	select column_name, 'Столбец'
 	from information_schema.columns
-	where table_schema = 'public'
+	where table_catalog = current_database() and table_schema = 'public'
+	union all
+	select sequence_name, 'Счетчик'
+	from information_schema.sequences
+	where sequence_catalog = current_database() and sequence_schema = 'public'
 ) t;

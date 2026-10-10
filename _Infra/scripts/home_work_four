@@ -1,6 +1,4 @@
 --структура таблиц + счётчики
-begin;
-
 do $$
 begin
 	-- справочник должностей
@@ -78,13 +76,10 @@ begin
 	alter table parameter_types alter column id set default nextval('seq_parameter_types');
 	create sequence seq_temperature_correction;
 	alter table temperature_correction alter column id set default nextval('seq_temperature_correction');
+	commit;
 end $$;
 
-commit;
-
 --тестовые данные 
-begin;
- 
 do $$
 begin
 	insert into positions (name) values
@@ -111,13 +106,10 @@ begin
 	insert into temperature_correction (t0_from, t0_to, delta_tv) values
 		(null, 0, 0), (0, 5, 0.5), (10, 15, 1), (20, 20, 1.5),
 		(25, 25, 2), (30, 30, 3.5), (40, 40, 4.5);
+	commit;
 end $$;
 
-commit;
-
 -- связи и ограничения 
-begin;
-
 do $$
 begin
 	-- ключи и уникальность
@@ -154,6 +146,5 @@ begin
 
 	alter table temperature_correction add primary key (id);
 	alter table temperature_correction alter column delta_tv set not null;
+	commit;
 end $$;
-
-commit;
