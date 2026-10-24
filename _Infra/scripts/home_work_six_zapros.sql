@@ -6,17 +6,20 @@ with pack_data as (
 		p.id as pack_id,
 		p.eq_type_id,
 		et.name as eq_type,
-		count(par.id) as parameter_count,
-		max(par.value) filter (where par.parameter_type_id = 1) as height,
-		max(par.value) filter (where par.parameter_type_id = 2) as temperature,
-		max(par.value) filter (where par.parameter_type_id = 3) as pressure,
-		max(par.value) filter (where par.parameter_type_id = 4) as wind_direction,
-		max(par.value) filter (where par.parameter_type_id = 5) as wind_speed,
-		max(par.value) filter (where par.parameter_type_id = 6) as drift_range
+		h.value as height,
+		t.value as temperature,
+		pr.value as pressure,
+		wd.value as wind_direction,
+		ws.value as wind_speed,
+		dr.value as drift_range
 	from public.packs p
 	join public.eq_types et on et.id = p.eq_type_id
-	left join public.parametrs par on par.pack_id = p.id
-	group by p.id, p.eq_type_id, et.name
+	left join public.parametrs h on h.pack_id = p.id and h.parameter_type_id = 1
+	left join public.parametrs t on t.pack_id = p.id and t.parameter_type_id = 2
+	left join public.parametrs pr on pr.pack_id = p.id and pr.parameter_type_id = 3
+	left join public.parametrs wd on wd.pack_id = p.id and wd.parameter_type_id = 4
+	left join public.parametrs ws on ws.pack_id = p.id and ws.parameter_type_id = 5
+	left join public.parametrs dr on dr.pack_id = p.id and dr.parameter_type_id = 6
 ),
 checked as (
 	select
@@ -24,11 +27,7 @@ checked as (
 		public.validate_parameters(
 			(pd.eq_type_id, pd.height, pd.temperature, pd.pressure,
 			 pd.wind_direction, pd.wind_speed, pd.drift_range)::public.parameter_list
-		) as range_errors,
-		case
-			when pd.parameter_count <> 5
-				then 'количество параметров не 5'
-		end as count_error
+		) as range_errors
 	from pack_data pd
 )
 select
@@ -40,25 +39,47 @@ select
 	wind_direction as "направление ветра",
 	wind_speed as "скорость ветра",
 	drift_range as "дальность сноса пуль",
-	(range_errors is not null or count_error is not null) as "флаг ошибок",
-	nullif(concat_ws('; ', range_errors, count_error), '') as "описание ошибки"
+	(range_errors is not null) as "флаг ошибок",
+	range_errors as "описание ошибки"
 from checked
 order by pack_id;
 
 -- 2. лучший стрелок
-with user_errors as (
+with pack_data as (
+	select
+		p.id as pack_id,
+		p.user_id,
+		p.eq_type_id,
+		h.value as height,
+		t.value as temperature,
+		pr.value as pressure,
+		wd.value as wind_direction,
+		ws.value as wind_speed,
+		dr.value as drift_range
+	from public.packs p
+	left join public.parametrs h on h.pack_id = p.id and h.parameter_type_id = 1
+	left join public.parametrs t on t.pack_id = p.id and t.parameter_type_id = 2
+	left join public.parametrs pr on pr.pack_id = p.id and pr.parameter_type_id = 3
+	left join public.parametrs wd on wd.pack_id = p.id and wd.parameter_type_id = 4
+	left join public.parametrs ws on ws.pack_id = p.id and ws.parameter_type_id = 5
+	left join public.parametrs dr on dr.pack_id = p.id and dr.parameter_type_id = 6
+),
+checked as (
+	select
+		pd.*,
+		public.validate_parameters(
+			(pd.eq_type_id, pd.height, pd.temperature, pd.pressure,
+			 pd.wind_direction, pd.wind_speed, pd.drift_range)::public.parameter_list
+		) as errors
+	from pack_data pd
+),
+user_errors as (
 	select
 		u.id,
 		u.full_name,
-		count(par.id) filter (
-			where (v.min_value is not null and par.value < v.min_value)
-			   or (v.max_value is not null and par.value > v.max_value)
-		) as errors
+		count(c.errors) as errors
 	from public.users u
-	left join public.packs p on p.user_id = u.id
-	left join public.parametrs par on par.pack_id = p.id
-	left join public.parameter_validation v
-		on v.parameter_type_id = par.parameter_type_id
+	left join checked c on c.user_id = u.id
 	group by u.id, u.full_name
 )
 select
