@@ -20,47 +20,30 @@ begin
 	end;
 	commit;
 
-	-- 2. проверка параметров
+	-- 2. проверка параметров с CTE
 	begin
 		drop function if exists public.validate_parameters(public.parameter_list);
 
 		create function public.validate_parameters(p public.parameter_list)
 		returns text
-		language plpgsql
+		language sql
+		stable
 		as $body$
-		declare
-			v_errors text := '';
-			v_error text;
-		begin
-			for v_error in
-				select r.error_message
-				from (
-					values
-						(1, p.height),
-						(2, p.temperature),
-						(3, p.pressure),
-						(4, p.wind_direction),
-						(5, p.wind_speed),
-						(6, p.drift_range)
-				) v(parameter_type_id, value)
-				join public.parameter_validation r
-					on r.parameter_type_id = v.parameter_type_id
-				where (r.min_value is not null and v.value < r.min_value)
-				   or (r.max_value is not null and v.value > r.max_value)
-			loop
-				if v_errors = '' then
-					v_errors := v_error;
-				else
-					v_errors := v_errors || '; ' || v_error;
-				end if;
-			end loop;
-
-			if v_errors = '' then
-				return null;
-			end if;
-
-			return v_errors;
-		end
+			with params(parameter_type_id, value) as (
+				values
+					(1, (p).height),
+					(2, (p).temperature),
+					(3, (p).pressure),
+					(4, (p).wind_direction),
+					(5, (p).wind_speed),
+					(6, (p).drift_range)
+			)
+			select string_agg(r.error_message, '; ' order by v.parameter_type_id)
+			from params v
+			join public.parameter_validation r
+				on r.parameter_type_id = v.parameter_type_id
+			where (r.min_value is not null and v.value < r.min_value)
+			   or (r.max_value is not null and v.value > r.max_value);
 		$body$;
 	end;
 	commit;
