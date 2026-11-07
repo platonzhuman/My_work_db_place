@@ -1,0 +1,224 @@
+do $$
+begin
+	-- дописываем высоты
+	begin
+		insert into calc_correction (height_id, type_id, row_values)
+		values
+		-- отрицательные
+		(5, 9, array[-1, -2, -3, -3, -4, -4, -5, -6, -7, -7, -17, -25, -34, -42]),
+		(6, 9, array[-1, -2, -3, -3, -4, -4, -5, -6, -6, -7, -16, -24, -32, -40]),
+		(7, 9, array[-1, -2, -2, -3, -4, -4, -5, -5, -6, -7, -15, -23, -31, -38]),
+		(8, 9, array[-1, -2, -2, -3, -4, -4, -4, -5, -5, -6, -15, -22, -30, -37]),
+		(9, 9, array[-1, -2, -2, -3, -4, -4, -4, -4, -5, -6, -14, -20, -27, -34]),
+		-- положительные
+		(5, 8, array[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 34, 42]),
+		(6, 8, array[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 32, 40]),
+		(7, 8, array[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 31, 38]),
+		(8, 8, array[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 30, 37]),
+		(9, 8, array[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 27, 34]),
+		-- скорость вр
+		(5, 4, array[4, 6, 7, 8, 9, 10, 11, 13, 14, 15, 17, 17]),
+		(6, 4, array[4, 6, 7, 8, 9, 10, 11, 13, 14, 16, 17, 18]),
+		(7, 4, array[4, 6, 8, 9, 9, 10, 12, 14, 15, 16, 18, 19]),
+		(8, 4, array[5, 6, 8, 9, 10, 11, 12, 14, 15, 17, 18, 19]),
+		(9, 4, array[5, 6, 8, 9, 10, 11, 12, 14, 16, 18, 19, 20]),
+		-- направление вр
+		(5, 5, array[3]), (6, 5, array[3]), (7, 5, array[3]), (8, 5, array[4]), (9, 5, array[4]),
+		-- скорость дмк
+		(5, 6, array[6, 8, 11, 13, 14, 17, 20, 21, 23, 25, 27, 29, 32]),
+		(6, 6, array[6, 9, 11, 13, 14, 17, 20, 21, 24, 26, 28, 30, 32]),
+		(7, 6, array[6, 9, 12, 14, 15, 18, 21, 22, 25, 27, 29, 32, 34]),
+		(8, 6, array[6, 9, 12, 14, 15, 18, 21, 23, 25, 28, 30, 32, 36]),
+		(9, 6, array[6, 10, 12, 14, 16, 19, 22, 24, 26, 29, 32, 34, 36]),
+		-- направление дмк
+		(5, 7, array[4]), (6, 7, array[4]), (7, 7, array[4]), (8, 7, array[5]), (9, 7, array[5]);
+	end;
+
+	-- чиним строки
+	begin
+		-- отрицательные были под 8, положительные под 7
+		update calc_correction set type_id = 9 where type_id = 8 and height_id in (1, 2, 3, 4);
+		update calc_correction set type_id = 8 where type_id = 7 and height_id in (1, 2, 3, 4) and row_values[2] is not null;
+
+		update calc_correction set row_values[13] = -38 where type_id = 9 and height_id = 2;
+		update calc_correction set row_values[9] = 22 where type_id = 6 and height_id = 4;
+
+		-- у старых положительных не хватало 40 и 50
+		update calc_correction set row_values = array[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 39, 49] where type_id = 8 and height_id = 1;
+		update calc_correction set row_values = array[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 38, 48] where type_id = 8 and height_id = 2;
+		update calc_correction set row_values = array[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 37, 46] where type_id = 8 and height_id = 3;
+		update calc_correction set row_values = array[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 35, 44] where type_id = 8 and height_id = 4;
+	end;
+
+	-- справочник заголовков + связь с типами
+	begin
+		alter table calc_correction_types drop constraint if exists fk_calc_correction_types_header;
+		drop table if exists calc_correction_headers;
+		drop sequence if exists calc_correction_headers_seq;
+
+		create sequence calc_correction_headers_seq;
+		create table calc_correction_headers
+		(
+			id integer not null primary key default nextval('public.calc_correction_headers_seq'),
+			description text not null,
+			header_values integer[] not null
+		);
+
+		comment on table calc_correction_headers is 'справочник заголовков таблиц поправок';
+
+		-- значения
+		insert into calc_correction_headers (description, header_values)
+		values
+		('таблица 2, отклонение температуры', array[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 40, 50]),
+		('таблица 3, скорость приземного ветра', array[3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
+		('таблица 3, дальность сноса пуль', array[40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150]);
+
+		-- без fk
+		alter table calc_correction_types add column if not exists header_id integer;
+
+		update calc_correction_types set header_id = 1 where id in (1, 8, 9);
+		update calc_correction_types set header_id = 2 where id = 6;
+		update calc_correction_types set header_id = 3 where id = 4;
+
+		-- fk 
+		alter table calc_correction_types add constraint fk_calc_correction_types_header foreign key (header_id) references calc_correction_headers (id);
+
+		alter table calc_correction_types drop column if exists header_values;
+	end;
+
+	-- мелкие функции 
+	begin
+		-- высота двумя цифрами
+		create or replace function public.fn_format_h(par_height integer) returns text language plpgsql as $body$
+		begin
+			return lpad((par_height / 100)::text, 2, '0');
+		end;
+		$body$;
+
+		-- температура в бюллетень
+		create or replace function public.fn_format_tt(par_t integer) returns text language plpgsql as $body$
+		begin
+			if par_t < 0 then return lpad((50 + abs(par_t))::text, 2, '0'); end if;
+			return lpad(par_t::text, 2, '0');
+		end;
+		$body$;
+
+		comment on function public.fn_format_tt(integer) is 'формат температуры в бюллетень';
+
+		-- направление ветра
+		create or replace function public.fn_format_hh(par_dir integer) returns text language plpgsql as $body$
+		begin
+			return lpad((par_dir % 60)::text, 2, '0');
+		end;
+		$body$;
+
+		-- скорость ветра
+		create or replace function public.fn_format_cc(par_speed integer) returns text language plpgsql as $body$
+		begin
+			return lpad(par_speed::text, 2, '0');
+		end;
+		$body$;
+	end;
+
+	-- расчет по высотам
+	begin
+		create or replace procedure public.pr_calc_meteo_average(par_params input_params_type, par_equipment_id integer) language plpgsql as $body$
+		declare
+			-- отклонение t заголовка (вход в таблицу по высотам)
+			var_dt integer;
+			-- десятки отклонения
+			var_tens integer;
+			-- единицы отклонения
+			var_units integer;
+			-- вход в таблицу ветра
+			var_wind integer;
+			-- текущая высота из цикла
+			var_h record;
+			-- сырое отклонение на высоте
+			var_t integer;
+			-- направление на высоте
+			var_dir integer;
+			-- скорость на высоте
+			var_speed integer;
+			-- поправка направления из таблицы
+			var_dcorr integer;
+			-- значения строки температуры
+			var_trow integer[];
+			-- значения строки скорости
+			var_srow integer[];
+			-- заголовок температуры
+			var_th integer[];
+			-- заголовок скорости
+			var_sh integer[];
+		begin
+			var_dt := round(public.fn_calc_header_temperature(par_params.temperature));
+			-- десятки
+			var_tens := (abs(var_dt) / 10) * 10;
+			-- остаток единицы
+			var_units := abs(var_dt) - var_tens;
+
+			-- дмк берет скорость ветра
+			if par_equipment_id = 1 then var_wind := par_params.wind_speed;
+			else
+				-- вр берет дальность сноса
+				var_wind := round(par_params.bullet_demolition_range / 10) * 10;
+			end if;
+
+			-- слабый ветер / малый снос равнф нулям
+			if (par_equipment_id = 1 and coalesce(par_params.wind_speed, 0) < 3) or (par_equipment_id = 2 and coalesce(par_params.bullet_demolition_range, 0) < 40) then
+				var_wind := null;
+			end if;
+
+			-- заголовок температуры 
+			select hd.header_values into var_th
+			from calc_correction_types t
+			join calc_correction_headers hd on hd.id = t.header_id
+			where t.id = case when var_dt < 0 then 9 else 8 end;
+
+			-- заголовок скорости если ветер считаем
+			if var_wind is not null then
+				select hd.header_values into var_sh
+				from calc_correction_types t
+				join calc_correction_headers hd on hd.id = t.header_id
+				where t.parent_id = 2 and t.measurment_equipment_id = par_equipment_id;
+			end if;
+
+			-- цикл по стандартным высотам
+			for var_h in select id, height from calc_correction_heights order by height loop
+				select c.row_values into var_trow
+				from calc_correction c
+				where c.height_id = var_h.id and c.type_id = case when var_dt < 0 then 9 else 8 end;
+
+				-- складываем десятки и единицы
+				var_t := coalesce(var_trow[array_position(var_th, var_tens)], 0) + coalesce(var_trow[array_position(var_th, var_units)], 0);
+				if var_wind is null then var_dir := 0; var_speed := 0;
+				else
+					-- скорость из таблицы на высоту
+					select c.row_values into var_srow
+					from calc_correction c
+					join calc_correction_types t on t.id = c.type_id
+					where c.height_id = var_h.id and t.parent_id = 2 and t.measurment_equipment_id = par_equipment_id;
+
+					var_speed := coalesce(var_srow[array_position(var_sh, var_wind)], 0);
+
+					-- поправка направления
+					select c.row_values[1] into var_dcorr
+					from calc_correction c
+					join calc_correction_types t on t.id = c.type_id
+					where c.height_id = var_h.id and t.parent_id = 3 and t.measurment_equipment_id = par_equipment_id;
+
+					-- направление с переходом через 60
+					if par_params.wind_direction::integer + coalesce(var_dcorr, 0) > 59 then var_dir := par_params.wind_direction::integer + coalesce(var_dcorr, 0) - 60;
+					else var_dir := par_params.wind_direction::integer + coalesce(var_dcorr, 0);
+					end if;
+				end if;
+
+				-- печать строки бюллетеня
+				raise notice 'h=% tt=% hh=% cc=%', public.fn_format_h(var_h.height), public.fn_format_tt(var_t), public.fn_format_hh(var_dir), public.fn_format_cc(var_speed);
+			end loop;
+		end;
+		$body$;
+
+		comment on procedure public.pr_calc_meteo_average(input_params_type, integer) is 'расчет метеосреднего по высотам';
+	end;
+end $$;
