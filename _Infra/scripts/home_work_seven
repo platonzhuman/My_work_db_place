@@ -1,0 +1,89 @@
+do $$
+begin
+    begin
+		-- удаление таблиц и всех связей
+        drop table if exists wind_dir cascade;
+        drop table if exists wind_speed cascade;
+        drop table if exists temp_corr cascade;
+
+        drop sequence if exists seq_wind_dir;
+        drop sequence if exists seq_wind_speed;
+        drop sequence if exists seq_temp_corr;
+    end;
+    commit;
+
+    begin
+        create table if not exists eq_types (
+            id integer primary key,
+            name varchar(150) not null
+        );
+
+        insert into eq_types (id, name)
+        select 1, 'ДМК'
+        where not exists (select 1 from eq_types where id = 1);
+
+        insert into eq_types (id, name)
+        select 2, 'ВР'
+        where not exists (select 1 from eq_types where id = 2);
+
+		-- генерируем значение
+        create sequence seq_temp_corr;
+
+        create table temp_corr (
+			-- берем след значение
+            id integer not null default nextval('seq_temp_corr'),
+            h numeric(8,2) not null,
+            comp smallint not null,
+            sign char(1) not null,
+            val numeric(8,2) not null,
+
+            constraint pk_temp_corr primary key (id),
+            constraint uq_temp_corr unique (h, comp, sign),
+			-- ограничения диапазонов
+            constraint chk_temp_corr_h
+                check (h in (200,400,800,1200,1600,2000,2400,3000,4000)),
+            constraint chk_temp_corr_comp
+                check (comp in (1,2,3,4,5,6,7,8,9,10,20,30,40,50)),
+			-- связываем текст с значением
+            constraint chk_temp_corr_sign check (sign in ('-', '+')),
+            constraint chk_temp_corr_val
+                check ((sign = '-' and val <= 0) or (sign = '+' and val >= 0))
+        );
+
+        create sequence seq_wind_speed;
+
+        create table wind_speed (
+            id integer not null default nextval('seq_wind_speed'),
+			-- с помощью references проверяем соответствие 
+            eq_type_id integer not null references eq_types(id),
+            h numeric(8,2) not null,
+            inp numeric(8,2) not null,
+            val numeric(8,2) not null,
+
+            constraint pk_wind_speed primary key (id),
+            constraint uq_wind_speed unique (eq_type_id, h, inp),
+            constraint chk_wind_speed_h
+                check (h in (200,400,800,1200,1600,2000,2400,3000,4000)),
+            constraint chk_wind_speed_inp
+                check ((eq_type_id = 1 and inp between 3 and 15)
+                    or (eq_type_id = 2 and inp between 40 and 150)),
+            constraint chk_wind_speed_val check (val between 0 and 36)
+        );
+
+        create sequence seq_wind_dir;
+
+        create table wind_dir (
+            id integer not null default nextval('seq_wind_dir'),
+            eq_type_id integer not null references eq_types(id),
+            h numeric(8,2) not null,
+            val numeric(8,2) not null,
+
+            constraint pk_wind_dir primary key (id),
+            constraint uq_wind_dir unique (eq_type_id, h),
+            constraint chk_wind_dir_h
+                check (h in (200,400,800,1200,1600,2000,2400,3000,4000)),
+            constraint chk_wind_dir_val check (val between 0 and 5)
+        );
+    end;
+    commit;
+end $$;
