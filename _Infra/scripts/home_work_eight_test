@@ -1,0 +1,33 @@
+-- проверка дмк 
+do $$
+declare
+	-- собираем вход как тип
+	var_p input_params_type;
+begin
+	var_p.height := 100;
+	var_p.temperature := 25;
+	var_p.pressure := 765;
+	var_p.wind_direction := 15;
+	var_p.wind_speed := 6;
+	var_p.bullet_demolition_range := 0;
+
+	raise notice '==== дмк ====';
+	call public.pr_calc_meteo_average(var_p, 1);
+end $$;
+
+-- проверка вр с реальной дальностью сноса
+do $$
+declare
+	-- снова вход
+	var_p input_params_type;
+begin
+	var_p.height := 100;
+	var_p.temperature := 15;
+	var_p.pressure := 750;
+	var_p.wind_direction := 10;
+	var_p.wind_speed := 0;
+	var_p.bullet_demolition_range := 134;
+
+	raise notice '==== вр ====';
+	call public.pr_calc_meteo_average(var_p, 2);
+end $$;
