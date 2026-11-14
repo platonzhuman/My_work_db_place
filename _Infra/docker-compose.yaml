@@ -12,6 +12,9 @@ services:
      - 15435:5432
     networks:
      - pgdata
+    volumes:
+     - ./postgres-data:/var/lib/postgresql/data
+     - ./backup:/backup
 
   pgadmin:
     container_name: "pgadmin"
@@ -32,6 +35,22 @@ services:
     restart: always
     depends_on:
     - postgres
+
+  mssql2017:
+    image: mcr.microsoft.com/mssql/server:2017-latest
+    container_name: mssql2017
+    hostname: mssql
+    environment:
+      ACCEPT_EULA: Y
+      MSSQL_SA_PASSWORD: ${MSSQL_PASS}
+    ports:
+      - "1433:1433"
+    volumes:
+      - ./mssql-data:/var/opt/mssql/data
+      - ./backup:/backup
+    networks:
+      - pgdata
+    restart: always
 
 networks:
   pgdata:
